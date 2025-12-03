@@ -10,44 +10,40 @@
 #define SCREENHEIGHT 64 // OLED display height, in pixels
 #define OLED_RESET     -1 // Reset pin # (or -1 if sharing Arduino reset pin)
 
+#define Red_LED 16
+#define Yellow_LED 17
+#define Buzzer 18
+
 Adafruit_BME280 bme; // I2C
 Adafruit_SSD1306 display(SCREENWIDTH, SCREENHEIGHT, &Wire, OLED_RESET);
 RTC_DS3231 rtc;
 
-float tempRead() {
-    
-    float readTempAVG;
-    float tempSum = 0;
+// float tempRead() {
+// 	float tempSum = 0;
 
-    for (int i = 0; i <= 10; i++) {
-        float temp = bme.readTemperature();
-        tempSum += temp;
-        // Serial.println(tempSum);
-        // Serial.print("\n");
-        readTempAVG = tempSum / 10;
-        delay(100);
-    }
-    return readTempAVG; 
-}
+// 	for (int i = 0; i < 10; i++) {
+// 		tempSum += bme.readTemperature();
+// 		delay(100);
+// 	}
+// 	return tempSum / 10.0;
+// }
 
-float humiRead() {
-	float readHumiAVG;
-	float humiSum = 0;
+// float humiRead() {
+// 	float humiSum = 0;
 
-	for (int i = 0; i <= 10; i++) {
-		float humi = bme.readHumidity();
-		humiSum += humi;
-		// Serial.println(humiSum);
-		// Serial.print("\n");
-		readHumiAVG = humiSum / 10;
-		delay(100);
-	}
-	return readHumiAVG;
-}
+// 	for (int i = 0; i < 10; i++) {
+// 		humiSum += bme.readHumidity();
+// 		delay(100);
+// 	}
+// 	return humiSum / 10.0;
+// }
 
 void setup() {
     Serial.begin(115200);
     Wire.begin(21, 22); // SDA, SCL pins for ESP32
+	pinMode(Red_LED, OUTPUT);
+	pinMode(Yellow_LED, OUTPUT);
+	pinMode(Buzzer, OUTPUT);
 
 	if (!bme.begin(0x76)) {
 		Serial.println("ไม่พบ BME280 ตรวจสอบการเชื่อมต่อ!");
@@ -71,7 +67,7 @@ void setup() {
          //display.invertDisplay(1);
 
     // pinMode(ledPinBlue, OUTPUT);
-    Serial.println("Initialzing BME280...");
+    Serial.println("Initializing BME280...");
 
     while (!bme.begin(0x76)) {
         Serial.print(".");
@@ -86,40 +82,49 @@ void loop() {
 	int hour = now.hour();
 	int min = now.minute();
 	int sec = now.second();
-
-	Serial.print("Time: ");
-	if (hour < 10) Serial.print("0");
-	Serial.print(hour);
-	Serial.print(":");
-	if (min < 10) Serial.print("0");
-	Serial.print(min);
-	Serial.print(":");
-	if (sec < 10) Serial.print("0");
-	Serial.println(sec);
-
 	delay(500);
-    // Serial.print("Temperature: ");
-    // Serial.print(tempRead());
-    // Serial.println(" °C");
-    // Serial.println("\n");
-	// Serial.print("Humanity:");
-	// Serial.print("Humanity:");
-	// Serial.print(humiRead());
-	// Serial.println(" %");
 
-	// Clear the buffer.
+	// Read sensors once per loop to avoid toggling buzzer due to multiple slow reads
+	float currentTemp = bme.readTemperature();
+	// float currentHumi = humiRead();
+
+	// Update display once with the read values and status
 	display.clearDisplay();
 	display.setTextSize(1);      // Normal 1:1 pixel scale
 	display.setTextColor(SSD1306_WHITE); // Draw white text
-	display.setCursor(0, 0);     // Start at top-left corner
-	display.print(tempRead());
-	display.print(" C");
-	display.setCursor(0, 30);     // Start at top-left corner
-	display.print(humiRead());
-	display.print(" %");
-	display.setCursor(0, 40);     // Start at top-left corner
+	display.setCursor(0, 0);
 
-    display.display();
+	if (currentTemp >= 24.0) {
+		digitalWrite(Red_LED, HIGH);
+		digitalWrite(Yellow_LED, LOW);
+		digitalWrite(Buzzer, HIGH);
+		display.print("danger wheather");
+	} else if (currentTemp >= 20.0) {
+		digitalWrite(Red_LED, LOW);
+		digitalWrite(Yellow_LED, HIGH);
+		digitalWrite(Buzzer, LOW);	
+		display.print("normal wheather");
+	} else {
+		digitalWrite(Red_LED, LOW);
+		digitalWrite(Yellow_LED, LOW);
+		digitalWrite(Buzzer, LOW);
+		display.print("cold wheather");
+	}
+	Serial.print("Temperature: ");
+	Serial.print(currentTemp);
+	Serial.println(" °C");
+
+	display.setCursor(0, 16);
+	display.print("Time: ");
+	if (hour < 10) display.print("0");
+	display.print(hour);
+	display.print(":");
+	if (min < 10) display.print("0");
+	display.print(min);
+	display.print(":");
+	if (sec < 10) display.print("0");
+	display.print(sec);
+	display.display();
 }
 // int ledPins[] = {23, 22, 21, 18, 19};
 
@@ -130,7 +135,7 @@ void loop() {
 // }
 
 // void loop() {
-//   for (int brightness = 0; brightness <= 255; brightness += 5) {
+//   forS (int brightness = 0; brightness <= 255; brightness += 5) {
 //     for (int i = 0; i < 5; i++){
 //       analogWrite(ledPins[i], brightness);
 //       delay(20);
